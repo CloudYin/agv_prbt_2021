@@ -9,6 +9,7 @@ from prbt_hardware_support.srv import WriteModbusRegister
 from prbt_hardware_support.msg import ModbusRegisterBlock, ModbusMsgInStamped
 from take_picture import take_picutre, undistort_pic
 from get_marker_pose import get_blue_marker_pose
+from std_msgs.msg import Int32MultiArray as HoldingRegister
 
 
 # API版本号（不允许修改）
@@ -89,6 +90,11 @@ def start_program():
     global table_angle
 
     rospy.loginfo("Program started")  # log
+    ros_pc_modbus_pub = rospy.Publisher("modbus_server/write_to_registers",HoldingRegister,queue_size=500)
+    msg = HoldingRegister()
+    msg.data = range(20)
+    ros_pc_modbus_pub.publish(msg)
+    rospy.sleep(1)
 
     """
     工艺安全设置

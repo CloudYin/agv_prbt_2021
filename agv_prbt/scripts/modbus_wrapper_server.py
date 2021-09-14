@@ -77,7 +77,7 @@ class CustomHoldingRegister(ModbusSequentialDataBlock):
     def setValues(self, address, value):
         """ 
             Sets the requested values to the holding registers
-            and publishes they new values on a rostopic 
+            and publishes the new values on a rostopic 
 
             :param address: The starting address
             :type address: int
