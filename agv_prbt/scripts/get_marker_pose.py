@@ -46,6 +46,6 @@ def get_blue_marker_pose(calibrated_file_path):
 
 
 if __name__ == '__main__':
-    calibrated_file_path = '/home/pilz/Pictures/agv_prbt/feed_table_calibrated.png'
+    calibrated_file_path = '/home/pilz/Pictures/agv_prbt/table_calibrated.png'
     x, y, angles = get_blue_marker_pose(calibrated_file_path)
     print(x, y, angles)

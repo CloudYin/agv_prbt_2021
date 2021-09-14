@@ -60,7 +60,7 @@ def undistort_pic(dis_file_path, undis_file_path):
 
 
 if __name__ == "__main__":
-    feed_table_pic_file_path = "/home/pilz/Pictures/agv_prbt/feed_table.png" 
-    feed_table_calibrated_pic_file_path = "/home/pilz/Pictures/agv_prbt/feed_table_calibrated.png"
-    take_picutre(feed_table_pic_file_path)
-    undistort_pic(feed_table_pic_file_path, feed_table_calibrated_pic_file_path)
+    table_pic_file_path = "/home/pilz/Pictures/agv_prbt/table.png" 
+    table_calibrated_pic_file_path = "/home/pilz/Pictures/agv_prbt/table_calibrated.png"
+    take_picutre(table_pic_file_path)
+    undistort_pic(table_pic_file_path, table_calibrated_pic_file_path)
