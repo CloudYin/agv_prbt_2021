@@ -82,6 +82,6 @@ limitations under the License.
     </group>
 
     <!-- startup application script with state-machine-based or similar procedural control -->
-    <!-- <node name="smart_factory_node" pkg="smart_factory" type="agv_prbt_application.py" />  -->
+    <node name="modbus_server_node" pkg="agv_prbt" type="modbus_server.py" /> 
 
 </launch>
