@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from struct import pack, unpack
 import socket
 import time
@@ -6,7 +6,7 @@ import time
 
 def socketConnect():
     # AGV IP address and port
-    agv_ip = '192.168.251.110'
+    agv_ip = '192.168.251.50'
     agv_port = 9999
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

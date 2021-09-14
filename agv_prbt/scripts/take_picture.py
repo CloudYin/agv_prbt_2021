@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import cv2
 import numpy as np
@@ -60,7 +60,7 @@ def undistort_pic(dis_file_path, undis_file_path):
 
 
 if __name__ == "__main__":
-    original_file_path = "/home/pilz/Pictures/agv_prbt/cap.png" 
-    calibrated_file_path = "/home/pilz/Pictures/agv_prbt/cap_calibrated.png"
-    take_picutre(original_file_path)
-    undistort_pic(original_file_path, calibrated_file_path)
+    feed_table_pic_file_path = "/home/pilz/Pictures/agv_prbt/feed_table.png" 
+    feed_table_calibrated_pic_file_path = "/home/pilz/Pictures/agv_prbt/feed_table_calibrated.png"
+    take_picutre(feed_table_pic_file_path)
+    undistort_pic(feed_table_pic_file_path, feed_table_calibrated_pic_file_path)

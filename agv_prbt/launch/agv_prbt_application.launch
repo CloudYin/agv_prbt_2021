@@ -19,10 +19,10 @@ limitations under the License.
 <launch>
 
     <!-- The "sim" argument controls whether we connect to a Simulated or Real robot -->
-    <arg name="sim" default="false" />
+    <arg name="sim" default="true" />
 
     <!-- For a customized gripper, do not set gripper value -->
-    <arg name="gripper" value="" />
+    <arg name="gripper" value="pg70" />
 
     <!-- Send urdf to parameter server -->
     <param name="robot_description"
@@ -57,7 +57,7 @@ limitations under the License.
             <!-- Safe-torque-off-input from the safety controller is read to brake the robot before power-off
                  The signal is read via modbus and you can configure the modbus server ip -->
             <arg name="safety_hw" value="pss4000" />
-            <arg name="modbus_server_ip" value="192.168.251.2" />
+            <arg name="modbus_server_ip" value="192.168.251.10" />
             <arg name="iso10218_support" value="true" />
             <arg name="has_braketest_support" value="false" />
             <arg name="has_operation_mode_support" value="true" />
@@ -82,6 +82,6 @@ limitations under the License.
     </group>
 
     <!-- startup application script with state-machine-based or similar procedural control -->
-    <!-- <node name="smart_factory_node" pkg="smart_factory" type="smart_factory_application.py" />  -->
+    <!-- <node name="smart_factory_node" pkg="smart_factory" type="agv_prbt_application.py" />  -->
 
 </launch>
