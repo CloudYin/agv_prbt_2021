@@ -58,10 +58,10 @@ def pss4000_modbus_write(start_idx, values):
 
 
 def pss4000_modbus_read_callback(data):
+    external_start = data.holding_registers.data[1]
+    external_stop = data.holding_registers.data[2]
+    external_reset = data.holding_registers.data[3]
     robot_run_permission = data.holding_registers.data[4]
-    external_start = data.holding_registers.data[25]
-    external_stop = data.holding_registers.data[26]
-    external_reset = data.holding_registers.data[27]
 
     if not robot_run_permission or external_stop:
         r.pause()
@@ -86,11 +86,6 @@ def table_cap_and_analyze():
     undistort_pic(table_pic_file_path, table_calibrated_pic_file_path)
     table_x, table_y, table_angle = get_blue_marker_pose(table_calibrated_pic_file_path)
 
-
-def init_modbus():
-    """
-    初始化部分通讯状态
-    """    
 
 def modclient_send_data(modclient_publisher):
     global agv_at_robotCell
@@ -138,7 +133,6 @@ def start_program():
 
     rospy.loginfo("Program started")  # log
     modbus_client_pub = rospy.Publisher("modbus_wrapper/output",HoldingRegister,queue_size=500)
-    modbus_client_sub = rospy.Subscriber("modbus_wrapper/input",HoldingRegister,showUpdatedRegisters,queue_size=500)
     modclient_send_data(modbus_client_pub)
 
     """
@@ -161,8 +155,8 @@ if __name__ == "__main__":
     # initialisation
     r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
 
-    # 启动通讯
-    init_modbus()
+    # modbus客户端接收数据
+    modbus_client_sub = rospy.Subscriber("modbus_wrapper/input",HoldingRegister,showUpdatedRegisters,queue_size=500)    
 
     # 启动程序
     start_program()
