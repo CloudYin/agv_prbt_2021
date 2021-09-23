@@ -47,7 +47,6 @@ def pss4000_modbus_write(start_idx, values):
 
 
 def pss4000_modbus_read_callback(data):
-    
     robot_run_permission = data.holding_registers.data[4]
     external_start = data.holding_registers.data[25]
     external_stop = data.holding_registers.data[26]
