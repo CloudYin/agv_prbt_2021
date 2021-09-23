@@ -52,8 +52,8 @@ if __name__=="__main__":
     To see sent something to the modbus use a publisher on the topic /modbus_wrapper/output
     This file contains a sample publisher.
     """)
-    host = "192.168.0.123"
-    port = 502
+    host = "192.168.251.112"
+    port = 1234
     if rospy.has_param("~ip"):
         host =  rospy.get_param("~ip")
     else:
