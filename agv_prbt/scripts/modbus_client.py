@@ -75,10 +75,10 @@ if __name__=="__main__":
     #################
     # Example 1
     # Sets an individual register using the python interface, which can automatically be reset, if a timeout is given.
-    register = 40020
-    value = 1
-    timeout = 0.5
-    modclient.setOutput(register,value,timeout)
+    # register = 40020
+    # value = 1
+    # timeout = 0.5
+    # modclient.setOutput(register,value,timeout)
     rospy.loginfo("Set and individual output")
     #################
     
