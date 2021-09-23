@@ -31,6 +31,10 @@ LIN_SCALE = 0.1         # 直线移动速度
 PnP_SCALE = 0.1         # 拾取与放置速度比例
 
 # 初始化变量
+agv_at_robotCell = False
+agv_robot_exchanging_box_plate = False
+agv_robot_exchanging_pen_plate = False
+agv_robot_at_home = False
 
 # 发送至PSS Modbus寄存器地址
 pss_modbus_write_dic = {
@@ -81,19 +85,30 @@ def init_modbus():
     初始化部分通讯状态
     """    
 
+def modclient_send_data(modclient_publisher):
+    global agv_at_robotCell
+    global agv_robot_exchanging_box_plate 
+    global agv_robot_exchanging_pen_plate 
+    global agv_robot_at_home
+    modbus_client_output = HoldingRegister()
+    modbus_client_output.data = [agv_at_robotCell, agv_robot_exchanging_box_plate, agv_robot_exchanging_pen_plate, agv_robot_at_home]
+    modclient_publisher.publish(modbus_client_output)
+
 
 # 主程序
 def start_program():
     global table_x
     global table_y
     global table_angle
+    global agv_at_robotCell
+    global agv_robot_exchanging_box_plate 
+    global agv_robot_exchanging_pen_plate 
+    global agv_robot_at_home
+    
 
     rospy.loginfo("Program started")  # log
-    ros_pc_modbus_pub = rospy.Publisher("modbus_server/write_to_registers",HoldingRegister,queue_size=500)
-    msg = HoldingRegister()
-    msg.data = range(20)
-    ros_pc_modbus_pub.publish(msg)
-    rospy.sleep(1)
+    modbus_client_pub = rospy.Publisher("modbus_wrapper/output",HoldingRegister,queue_size=500)
+    modclient_send_data(modbus_client_pub)
 
     """
     工艺安全设置
@@ -104,6 +119,8 @@ def start_program():
     if current_pose.position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=START_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+    agv_robot_at_home = True
+    modclient_send_data(modbus_client_pub)
     
 
 if __name__ == "__main__":
