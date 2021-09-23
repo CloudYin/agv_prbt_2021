@@ -32,9 +32,16 @@ PnP_SCALE = 0.1         # 拾取与放置速度比例
 
 # 初始化变量
 agv_at_robotCell = False
-agv_robot_exchanging_box_plate = False
-agv_robot_exchanging_pen_plate = False
-agv_robot_at_home = False
+agv_prbt_exchanging_box_plate = False
+agv_prbt_exchanging_pen_plate = False
+agv_prbt_at_home = False
+robotCell_box_missing = False
+robotCell_pen_missing = False
+robotCell_prbt_picking_box = False
+robotCell_prbt_picking_pen = False
+robotCell_prbt_handing_out_box = False
+robotCell_prbt_handing_out_pen = False
+robotCell_prbt_at_home = False
 
 # 发送至PSS Modbus寄存器地址
 pss_modbus_write_dic = {
@@ -87,13 +94,29 @@ def init_modbus():
 
 def modclient_send_data(modclient_publisher):
     global agv_at_robotCell
-    global agv_robot_exchanging_box_plate 
-    global agv_robot_exchanging_pen_plate 
-    global agv_robot_at_home
+    global agv_prbt_exchanging_box_plate 
+    global agv_prbt_exchanging_pen_plate 
+    global agv_prbt_at_home
     modbus_client_output = HoldingRegister()
-    modbus_client_output.data = [agv_at_robotCell, agv_robot_exchanging_box_plate, agv_robot_exchanging_pen_plate, agv_robot_at_home]
+    modbus_client_output.data = [agv_at_robotCell, agv_prbt_exchanging_box_plate, agv_prbt_exchanging_pen_plate, agv_prbt_at_home]
     modclient_publisher.publish(modbus_client_output)
 
+
+def showUpdatedRegisters(msg):
+    global robotCell_box_missing
+    global robotCell_pen_missing
+    global robotCell_prbt_picking_box
+    global robotCell_prbt_picking_pen
+    global robotCell_prbt_handing_out_box
+    global robotCell_prbt_handing_out_pen
+    global robotCell_prbt_at_home
+    robotCell_box_missing = msg.data[0]
+    robotCell_pen_missing = msg.data[1]
+    robotCell_prbt_picking_box = msg.data[2]
+    robotCell_prbt_picking_pen = msg.data[3]
+    robotCell_prbt_handing_out_box = msg.data[4]
+    robotCell_prbt_handing_out_box = msg.data[5]
+    robotCell_prbt_at_home = msg.data[6]
 
 # 主程序
 def start_program():
@@ -101,13 +124,21 @@ def start_program():
     global table_y
     global table_angle
     global agv_at_robotCell
-    global agv_robot_exchanging_box_plate 
-    global agv_robot_exchanging_pen_plate 
-    global agv_robot_at_home
-    
+    global agv_prbt_exchanging_box_plate 
+    global agv_prbt_exchanging_pen_plate 
+    global agv_prbt_at_home
+    global robotCell_box_missing
+    global robotCell_pen_missing
+    global robotCell_prbt_picking_box
+    global robotCell_prbt_picking_pen
+    global robotCell_prbt_handing_out_box
+    global robotCell_prbt_handing_out_pen
+    global robotCell_prbt_at_home
+
 
     rospy.loginfo("Program started")  # log
     modbus_client_pub = rospy.Publisher("modbus_wrapper/output",HoldingRegister,queue_size=500)
+    modbus_client_sub = rospy.Subscriber("modbus_wrapper/input",HoldingRegister,showUpdatedRegisters,queue_size=500)
     modclient_send_data(modbus_client_pub)
 
     """
@@ -119,7 +150,7 @@ def start_program():
     if current_pose.position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=START_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-    agv_robot_at_home = True
+    agv_prbt_at_home = True
     modclient_send_data(modbus_client_pub)
     
 
