@@ -48,7 +48,7 @@ pss_modbus_write_dic = {
     }
 
 
-def pss4000_modbus_write(start_idx, values):
+def pss_modbus_write(start_idx, values):
     rospy.wait_for_service('/pilz_modbus_client_node/modbus_write')
     try:
         modbus_write_client = rospy.ServiceProxy('/pilz_modbus_client_node/modbus_write', WriteModbusRegister)
@@ -57,7 +57,7 @@ def pss4000_modbus_write(start_idx, values):
         print("Modbus write service call failed: %s" %e)
 
 
-def pss4000_modbus_read_callback(data):
+def pss_modbus_read_callback(data):
     external_start = data.holding_registers.data[1]
     external_stop = data.holding_registers.data[2]
     external_reset = data.holding_registers.data[3]
@@ -72,7 +72,7 @@ def pss4000_modbus_read_callback(data):
 
 
 def pss4000_modbus_read():
-    rospy.Subscriber("/pilz_modbus_client_node/modbus_read", ModbusMsgInStamped, pss4000_modbus_read_callback, queue_size=1)
+    rospy.Subscriber("/pilz_modbus_client_node/modbus_read", ModbusMsgInStamped, pss_modbus_read_callback, queue_size=1)
 
 
 def table_cap_and_analyze():
