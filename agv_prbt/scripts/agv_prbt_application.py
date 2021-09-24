@@ -71,7 +71,7 @@ def pss_modbus_read_callback(data):
         r.resume()
 
 
-def pss4000_modbus_read():
+def pss_modbus_read():
     rospy.Subscriber("/pilz_modbus_client_node/modbus_read", ModbusMsgInStamped, pss_modbus_read_callback, queue_size=1)
 
 
