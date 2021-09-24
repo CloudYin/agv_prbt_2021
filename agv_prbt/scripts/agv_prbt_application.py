@@ -9,7 +9,7 @@ from prbt_hardware_support.srv import WriteModbusRegister
 from prbt_hardware_support.msg import ModbusRegisterBlock, ModbusMsgInStamped
 from take_picture import take_picutre, undistort_pic
 from get_marker_pose import get_blue_marker_pose
-from std_msgs.msg import Int32MultiArray as HoldingRegister
+from modbus_wrapper_client import ModbusWrapperClient 
 
 
 # API版本号（不允许修改）
@@ -75,6 +75,19 @@ def pss_modbus_read():
     rospy.Subscriber("/pilz_modbus_client_node/modbus_read", ModbusMsgInStamped, pss_modbus_read_callback, queue_size=1)
 
 
+def pymodbus_client():
+    NUM_REGISTERS = 20
+    ADDRESS_READ_START = 40000
+    ADDRESS_WRITE_START = 40020
+    host = "192.168.251.112"
+    port = 1234
+    modclient = ModbusWrapperClient(host,port=port,rate=50,reset_registers=False)
+    modclient.setReadingRegisters(ADDRESS_READ_START,NUM_REGISTERS)
+    modclient.setWritingRegisters(ADDRESS_WRITE_START,NUM_REGISTERS)
+    modclient.startListening()
+    return modclient
+
+
 def table_cap_and_analyze():
     """
     拍照并获取上料台相对位置
@@ -85,55 +98,20 @@ def table_cap_and_analyze():
     take_picutre(table_pic_file_path)
     undistort_pic(table_pic_file_path, table_calibrated_pic_file_path)
     table_x, table_y, table_angle = get_blue_marker_pose(table_calibrated_pic_file_path)
+    
+    
+
+if __name__ == "__main__":
+    # 创建节点
+    rospy.init_node('robot_program_node')
+
+    # 初始化
+    r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
+    modclient = pymodbus_client()
 
 
-def modclient_send_data(modclient_publisher):
-    global agv_at_robotCell
-    global agv_prbt_exchanging_box_plate 
-    global agv_prbt_exchanging_pen_plate 
-    global agv_prbt_at_home
-    modbus_client_output = HoldingRegister()
-    modbus_client_output.data = [agv_at_robotCell, agv_prbt_exchanging_box_plate, agv_prbt_exchanging_pen_plate, agv_prbt_at_home]
-    modclient_publisher.publish(modbus_client_output)
-
-
-def showUpdatedRegisters(msg):
-    global robotCell_box_missing
-    global robotCell_pen_missing
-    global robotCell_prbt_picking_box
-    global robotCell_prbt_picking_pen
-    global robotCell_prbt_handing_out_box
-    global robotCell_prbt_handing_out_pen
-    global robotCell_prbt_at_home
-    robotCell_box_missing = msg.data[0]
-    robotCell_pen_missing = msg.data[1]
-    robotCell_prbt_picking_box = msg.data[2]
-    robotCell_prbt_picking_pen = msg.data[3]
-    robotCell_prbt_handing_out_box = msg.data[4]
-    robotCell_prbt_handing_out_box = msg.data[5]
-    robotCell_prbt_at_home = msg.data[6]
-
-# 主程序
-def start_program():
-    global table_x
-    global table_y
-    global table_angle
-    global agv_at_robotCell
-    global agv_prbt_exchanging_box_plate 
-    global agv_prbt_exchanging_pen_plate 
-    global agv_prbt_at_home
-    global robotCell_box_missing
-    global robotCell_pen_missing
-    global robotCell_prbt_picking_box
-    global robotCell_prbt_picking_pen
-    global robotCell_prbt_handing_out_box
-    global robotCell_prbt_handing_out_pen
-    global robotCell_prbt_at_home
-
-
+    # 启动程序
     rospy.loginfo("Program started")  # log
-    modbus_client_pub = rospy.Publisher("modbus_wrapper/output",HoldingRegister,queue_size=500)
-    modclient_send_data(modbus_client_pub)
 
     """
     工艺安全设置
@@ -145,20 +123,6 @@ def start_program():
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=START_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
     agv_prbt_at_home = True
-    modclient_send_data(modbus_client_pub)
-    
-
-if __name__ == "__main__":
-    # 创建节点
-    rospy.init_node('robot_program_node')
-
-    # initialisation
-    r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
-
-    # modbus客户端接收数据
-    modbus_client_sub = rospy.Subscriber("modbus_wrapper/input",HoldingRegister,showUpdatedRegisters,queue_size=500)    
-
-    # 启动程序
-    start_program()
 
     rospy.spin()
+    modclient.stopListening()

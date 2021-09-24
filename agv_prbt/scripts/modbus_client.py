@@ -68,6 +68,8 @@ if __name__=="__main__":
     # rospy.loginfo("Set and individual output")
     #################
     
+    output = modclient.client.read_holding_registers(40000, 1).registers
+    print(output)
     
     
     #################
@@ -95,7 +97,6 @@ if __name__=="__main__":
     #     rospy.sleep(1)
     #     pub.publish(output2)
     #################
-    rospy.spin()
     
     # Stops the listener on the modbus
     modclient.stopListening()
