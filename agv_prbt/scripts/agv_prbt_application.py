@@ -109,7 +109,6 @@ if __name__ == "__main__":
     r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
     modclient = pymodbus_client()
 
-
     # 启动程序
     rospy.loginfo("Program started")  # log
 
@@ -123,6 +122,10 @@ if __name__ == "__main__":
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=START_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
     agv_prbt_at_home = True
+    modclient.client.write_register(40023, 1)
+    
+    robotCell_prbt_at_home = modclient.client.read_holding_registers(40006, 1).registers[0]
+
 
     rospy.spin()
     modclient.stopListening()

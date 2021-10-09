@@ -68,9 +68,6 @@ if __name__=="__main__":
     # rospy.loginfo("Set and individual output")
     #################
     
-    output = modclient.client.read_holding_registers(40000, 1).registers
-    print(output)
-    
     
     #################
     # Example 2
