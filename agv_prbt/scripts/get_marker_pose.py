@@ -21,8 +21,8 @@ def get_blue_marker_pose(calibrated_file_path):
     for component in zip(contours, hierarchy):
         currentContour = component[0]
         currentHierarchy = component[1]
-        if currentHierarchy[3] != -1:
-            # these are the innermost child components
+        if currentHierarchy[3] == -1:
+            # these are the outermost child components
             img_contour = cv2.drawContours(image_copy, currentContour, -1, (0, 0, 0))
             if cv2.moments(currentContour)['m00'] > 500:
                 m00 = cv2.moments(currentContour)['m00']
@@ -37,7 +37,7 @@ def get_blue_marker_pose(calibrated_file_path):
                 angle = -cv2.minAreaRect(currentContour)[2]
                 if angle > 45:
                     angle = angle - 90
-                cv2.circle(img_contour, (int(centerX), int(centerY)), 1, (0, 0, 255))
+                cv2.circle(img_contour, (int(centerX), int(centerY)), 2, (0, 0, 255))
     # cv2.imshow("img_contour", reshaped_img)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
