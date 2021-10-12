@@ -16,7 +16,7 @@ from modbus_wrapper_client import ModbusWrapperClient
 REQUIRED_API_VERSION = "1"
 
 # 位置常量（因涉及到实际机械位置，因此不要修改）
-START_POSE = [math.radians(-90), math.radians(30), math.radians(-120), 0, math.radians(-30), math.radians(-45)]    # 起始关节角度
+START_POSE = [math.radians(-90), math.radians(0), math.radians(-115), 0, math.radians(-65), math.radians(135)]    # 起始关节角度
 GRIPPER_ORIENTATION = from_euler(0, math.radians(180),  math.radians(45))         # 夹爪方向
 SAFETY_HEIGHT =  0.12
 
@@ -42,9 +42,14 @@ robotCell_prbt_picking_pen = False
 robotCell_prbt_handing_out_box = False
 robotCell_prbt_handing_out_pen = False
 robotCell_prbt_at_home = False
+pen_plate_pick_height = 0
+pen_plate_place_height = 0
+box_plate_pick_height = 0
+box_plate_place_height = 0
 
 # 发送至PSS Modbus寄存器地址
 pss_modbus_write_dic = {
+    'agv_ros_program_run': 1000
     }
 
 
@@ -58,12 +63,22 @@ def pss_modbus_write(start_idx, values):
 
 
 def pss_modbus_read_callback(data):
+    global pen_plate_pick_height
+    global pen_plate_place_height
+    global box_plate_pick_height
+    global box_plate_place_height
     external_start = data.holding_registers.data[1]
     external_stop = data.holding_registers.data[2]
     external_reset = data.holding_registers.data[3]
     robot_run_permission = data.holding_registers.data[4]
+    pen_plate_pick_height = data.holding_registers.data[10]
+    pen_plate_place_height = data.holding_registers.data[11]
+    box_plate_pick_height = data.holding_registers.data[12]
+    box_plate_place_height = data.holding_registers.data[13]
 
-    if not robot_run_permission or external_stop:
+
+    # if not robot_run_permission or external_stop:
+    if external_stop:
         r.pause()
         
     if external_start:
@@ -87,6 +102,11 @@ def pymodbus_client():
     modclient.startListening()
     return modclient
 
+def init_modbus():
+    pss_modbus_read()
+    pss_modbus_write(pss_modbus_write_dic['agv_ros_program_run'], [0])
+    rospy.sleep(1)
+
 
 def table_cap_and_analyze():
     """
@@ -104,13 +124,17 @@ def table_cap_and_analyze():
 if __name__ == "__main__":
     # 创建节点
     rospy.init_node('robot_program_node')
+    
 
     # 初始化
     r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
+
+    init_modbus()
     modclient = pymodbus_client()
 
     # 启动程序
     rospy.loginfo("Program started")  # log
+    pss_modbus_write(pss_modbus_write_dic['agv_ros_program_run'], [1])
 
     """
     工艺安全设置
@@ -121,7 +145,6 @@ if __name__ == "__main__":
     if current_pose.position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=START_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-    agv_prbt_at_home = True
     modclient.client.write_register(40023, 1)
     
     robotCell_prbt_at_home = modclient.client.read_holding_registers(40006, 1).registers[0]
