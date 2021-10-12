@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import numpy as np
 import cv2
 import glob
@@ -11,7 +8,7 @@ def take_calibration_pic():
     """
     Basler摄像头拍棋盘格
     """
-    num_img_to_save = 200
+    num_img_to_save = 20
     img = pylon.PylonImage()
     tlf = pylon.TlFactory.GetInstance()
 
@@ -79,7 +76,7 @@ def execute_calibration():
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
     # 存文件
-    np.savez('/home/pilz/Pictures/camera_calibration/test_fname.npz', mtx = mtx, dist = dist)
+    np.savez('/home/pilz/Pictures/camera_calibration/test_fname.npz', mtx=mtx, dist=dist)
 
     return (mtx, dist)
 

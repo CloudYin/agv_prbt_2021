@@ -1,4 +1,3 @@
-
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
@@ -42,10 +41,10 @@ def get_blue_marker_pose(calibrated_file_path):
     # cv2.imshow("img_contour", reshaped_img)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    return (centerX, centerY, angle)
+    return centerX, centerY, angle
 
 
 if __name__ == '__main__':
     calibrated_file_path = '/home/pilz/Pictures/agv_prbt/table_calibrated.png'
-    x, y, angles = get_blue_marker_pose(calibrated_file_path)
-    print(x, y, angles)
+    x, y, angle = get_blue_marker_pose(calibrated_file_path)
+    print(x, y, angle)

@@ -16,7 +16,8 @@ from modbus_wrapper_client import ModbusWrapperClient
 REQUIRED_API_VERSION = "1"
 
 # 位置常量（因涉及到实际机械位置，因此不要修改）
-START_POSE = [math.radians(-90), math.radians(0), math.radians(-115), 0, math.radians(-65), math.radians(135)]    # 起始关节角度
+HOME_POSE = [math.radians(-90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # 起始关节角度
+FEED_TABLE_PICTURE_POSE = [math.radians(90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # 起始关节角度
 GRIPPER_ORIENTATION = from_euler(0, math.radians(180),  math.radians(45))         # 夹爪方向
 SAFETY_HEIGHT =  0.12
 
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
 
     init_modbus()
-    modclient = pymodbus_client()
+    # modclient = pymodbus_client()
 
     # 启动程序
     rospy.loginfo("Program started")  # log
@@ -144,11 +145,12 @@ if __name__ == "__main__":
     current_pose = r.get_current_pose()
     if current_pose.position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
-    r.move(Ptp(goal=START_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-    modclient.client.write_register(40023, 1)
+    r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+    # modclient.client.write_register(40023, 1)
     
-    robotCell_prbt_at_home = modclient.client.read_holding_registers(40006, 1).registers[0]
+    # robotCell_prbt_at_home = modclient.client.read_holding_registers(40006, 1).registers[0]
+    r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
 
 
     rospy.spin()
-    modclient.stopListening()
+    # modclient.stopListening()

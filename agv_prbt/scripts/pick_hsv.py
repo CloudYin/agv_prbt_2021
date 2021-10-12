@@ -3,11 +3,11 @@
 
 import cv2
 
-img = cv2.imread('/home/pilz/Pictures/agv_prbt/cap_calibrated.png')  # 直接读为灰度图像
+img = cv2.imread('/home/pilz/Pictures/agv_prbt/table_calibrated.png')  # 直接读为灰度图像
 x, y = img.shape[0:2]
 
 reshaped_img = cv2.resize(img, (int(y / 1), int(x / 1)))
-cv2.imwrite('/home/pilz/Pictures/agv_prbt/cap_calibrated_reshaped.png', reshaped_img)
+cv2.imwrite('/home/pilz/Pictures/agv_prbt/table_calibrated_reshaped.png', reshaped_img)
 
 # BGR转化为HSV
 HSV = cv2.cvtColor(reshaped_img, cv2.COLOR_BGR2HSV)
