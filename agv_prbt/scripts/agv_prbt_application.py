@@ -3,6 +3,7 @@
 
 import math
 import rospy
+import random 
 from geometry_msgs.msg import Pose, Point
 from pilz_robot_programming import Ptp, Lin, Robot, from_euler, Sequence
 from prbt_hardware_support.srv import WriteModbusRegister
@@ -10,6 +11,7 @@ from prbt_hardware_support.msg import ModbusRegisterBlock, ModbusMsgInStamped
 from take_picture import take_picutre, undistort_pic
 from get_marker_pose import get_blue_marker_pose
 from modbus_wrapper_client import ModbusWrapperClient 
+from agv_communication import agv_communication_deploy, agv_communication_lookup
 
 
 # API版本号（不允许修改）
@@ -36,8 +38,6 @@ agv_at_robotCell = False
 agv_prbt_exchanging_box_plate = False
 agv_prbt_exchanging_pen_plate = False
 agv_prbt_at_home = False
-robotCell_box_missing = False
-robotCell_pen_missing = False
 robotCell_prbt_picking_box = False
 robotCell_prbt_picking_pen = False
 robotCell_prbt_handing_out_box = False
@@ -100,6 +100,13 @@ def pymodbus_client():
     modclient = ModbusWrapperClient(host,port=port,rate=50,reset_registers=False)
     modclient.setReadingRegisters(ADDRESS_READ_START,NUM_REGISTERS)
     modclient.setWritingRegisters(ADDRESS_WRITE_START,NUM_REGISTERS)
+    while not (modclient.client.connect() or rospy.is_shutdown()):
+        rospy.logwarn("Could not get a modbus connection to the host %s, reconnecting...", host)
+        modclient.closeConnection()
+        rospy.sleep(3)
+        modclient = ModbusWrapperClient(host,port=port,rate=50,reset_registers=False)
+        modclient.setReadingRegisters(ADDRESS_READ_START,NUM_REGISTERS)
+        modclient.setWritingRegisters(ADDRESS_WRITE_START,NUM_REGISTERS)
     modclient.startListening()
     return modclient
 
@@ -126,12 +133,14 @@ if __name__ == "__main__":
     # 创建节点
     rospy.init_node('robot_program_node')
     
-
     # 初始化
     r = Robot(REQUIRED_API_VERSION)  # 创建化机器人实例
 
+    agv_task_id_deploy = random.randint(1, 100)
+    agv_task_id_lookup = agv_task_id_deploy
+
     init_modbus()
-    # modclient = pymodbus_client()
+    modclient = pymodbus_client()
 
     # 启动程序
     rospy.loginfo("Program started")  # log
@@ -146,11 +155,27 @@ if __name__ == "__main__":
     if current_pose.position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-    # modclient.client.write_register(40023, 1)
+    modclient.client.write_register(40023, 1)
+
+    # agv运行至1号起始位（充电位）
+    # agv_task_id_current, agv_task_deploy_result = agv_communication_deploy(agv_task_id_deploy, 1)
+    # while agv_task_deploy_result != 1:
+    #     print("Task deploy failed.")
+    #     rospy.sleep(1)
+    #     agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
+    # agv_task_id_deploy = agv_task_id_current + 1
+    # agv_task_id_lookup = agv_task_id_current
     
-    # robotCell_prbt_at_home = modclient.client.read_holding_registers(40006, 1).registers[0]
-    r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+    robotCell_box_missing = modclient.client.read_holding_registers(40006, 1).registers[0]
+    if robotCell_box_missing:
+        # agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
+        # while agv_task_lookup_result != 3:
+        #     print("Task not finished.")
+        #     rospy.sleep(1)
+        #     agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
+        r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        r.get_current_pose()
 
 
     rospy.spin()
-    # modclient.stopListening()
+    modclient.stopListening()
