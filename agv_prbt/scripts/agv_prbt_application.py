@@ -174,7 +174,9 @@ if __name__ == "__main__":
         #     rospy.sleep(1)
         #     agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
         r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-        r.get_current_pose()
+        robot_x = r.get_current_pose().position.x
+        robot_y = r.get_current_pose().position.y
+        robot_z = r.get_current_pose().position.z
 
 
     rospy.spin()

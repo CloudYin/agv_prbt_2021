@@ -19,7 +19,7 @@ limitations under the License.
 <launch>
 
     <!-- The "sim" argument controls whether we connect to a Simulated or Real robot -->
-    <arg name="sim" default="false" />
+    <arg name="sim" default="true" />
 
     <!-- For a customized gripper, do not set gripper value -->
     <arg name="gripper" value="pg70" />
