@@ -6,6 +6,8 @@ import numpy as np
 
 
 def get_blue_marker_pose(calibrated_file_path):
+    x = []
+    y = []
     original_image = cv2.imread(calibrated_file_path)
     image_copy = original_image.copy()
     image_hsv = cv2.cvtColor(original_image, cv2.COLOR_BGR2HSV)
@@ -35,20 +37,23 @@ def get_blue_marker_pose(calibrated_file_path):
                 points = np.int0(points)
                 cv2.drawContours(img_contour, [points], -1, (0, 255, 0), 2)
                 angle = -cv2.minAreaRect(currentContour)[2]
-                if angle > 45:
+                if 45< angle <= 135:
                     angle = angle - 90
+                elif 135 < angle:
+                    angle = angle - 180
                 cv2.circle(img_contour, (int(centerX), int(centerY)), 2, (0, 0, 255))
-                feed_table_x = centerX
-                feed_table_y = centerY
+                feed_table_x = ((centerX-1000) * 0.0722)/1000
+                feed_table_y = ((800-centerY) * 0.0706)/1000
                 robotCell_table_x = centerX
                 robotCell_table_y = centerY
-    # cv2.imshow("img_contour", reshaped_img)
+    # cv2.imshow("img_contour", img_contour)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    return feed_table_x, feed_table_y, robotCell_table_x, robotCell_table_y, angle
+    cv2.imwrite("/home/pilz/Pictures/agv_prbt/table_contour.jpg", img_contour)
+    return feed_table_x, feed_table_y, angle
 
 
 if __name__ == '__main__':
     calibrated_file_path = '/home/pilz/Pictures/agv_prbt/table_calibrated.png'
-    feed_table_x, feed_table_y, robotCell_table_x, robotCell_table_y, angle = get_blue_marker_pose(calibrated_file_path)
-    print(feed_table_x, feed_table_y, angle)
+    x, y, angle = get_blue_marker_pose(calibrated_file_path)
+    print(x, y, angle)
