@@ -124,7 +124,21 @@ def table_cap_and_analyze():
     undistort_pic(table_pic_file_path, table_calibrated_pic_file_path)
     table_x, table_y, table_angle = get_blue_marker_pose(table_calibrated_pic_file_path)
     return table_x, table_y, table_angle
+  
     
+def agv_task_deply_wrapper(task_id, task_number):
+    agv_task_id_current, _ = agv_communication_deploy(task_id, task_number)
+    rospy.sleep(1)
+    agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(task_id, task_number)
+    while agv_task_lookup_result != 3:
+        print("Task not finished.")
+        rospy.sleep(1)
+        agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(task_id, task_number)
+    if agv_task_lookup_result == 3:
+        print("AGV reached goal %s", task_number)
+        agv_task_id_deploy = agv_task_id_current + 1
+    return agv_task_id_deploy
+
 
 if __name__ == "__main__":
     program_cycle_count = 1
@@ -168,12 +182,6 @@ if __name__ == "__main__":
     
     robotCell_box_missing = modclient.client.read_holding_registers(40006, 1).registers[0]
     if robotCell_box_missing:
-        if program_cycle_count != 1:
-            agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
-            while agv_task_lookup_result != 3:
-                print("Task not finished.")
-                rospy.sleep(1)
-                agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
         r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
         table_x, table_y, table_angle = table_cap_and_analyze()
         robot_x = r.get_current_pose().position.x + table_x
@@ -187,16 +195,13 @@ if __name__ == "__main__":
         rospy.sleep(3)
         ###
         r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-
-        agv_task_id_current, agv_task_deploy_result = agv_communication_deploy(agv_task_id_deploy, 5)
-        while agv_task_deploy_result != 1:
-            print("Task deploy failed.")
-            rospy.sleep(1)
-            agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 5)
-        print("Task Id: " + str(agv_task_id_current))
-        print("Result: " + str(agv_task_deploy_result))
-        agv_task_id_deploy = agv_task_id_current + 1
-        agv_task_id_lookup = agv_task_id_current
+        agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 5)
+        r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        rospy.sleep(3)
+        r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 1)
+        
     
+    program_cycle_count += 1
     rospy.spin()
     modclient.stopListening()
