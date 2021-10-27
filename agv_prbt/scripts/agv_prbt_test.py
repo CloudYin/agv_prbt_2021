@@ -3,6 +3,7 @@
 
 import math
 import rospy
+import random 
 from geometry_msgs.msg import Pose, Point
 from pilz_robot_programming import Ptp, Lin, Robot, from_euler, Sequence
 from agv_communication import agv_communication_deploy, agv_communication_lookup
@@ -20,8 +21,8 @@ TEST_POSE = [math.radians(-90), 0, math.radians(-90), 0, math.radians(0), math.r
 LIN_SCALE = 0.2         # 直线移动速度
 PTP_SCALE = 0.2         # PTP Scale
 
-task_id_deploy = 1
-task_id_lookup = 1
+task_id_deploy = random.randint(1, 100)
+task_id_lookup = task_id_deploy
 
 # 主程序
 def start_program():
@@ -29,13 +30,13 @@ def start_program():
     rospy.loginfo("Program started")  # log
 
     r.move(Ptp(goal=START_POSE, vel_scale=PTP_SCALE, acc_scale=0.1))
-    task_id_current, task_deploy_result = agv_communication_deploy(task_id_deploy, 2)
+    task_id_current, task_deploy_result = agv_communication_deploy(task_id_deploy, 1)
     print("Task id current: " + str(task_id_current))
     print("Task id deploy result: " + str(task_deploy_result))
     while task_deploy_result != 1:
         print("Task deploy failed.")
         rospy.sleep(1)
-        task_id_current, task_lookup_result = agv_communication_lookup(task_id_lookup, 2)
+        task_id_current, task_lookup_result = agv_communication_lookup(task_id_lookup, 1)
     task_id_deploy = task_id_current + 1
     task_id_lookup = task_id_current
     print("Task id next deploy: " + str(task_id_deploy))
@@ -43,12 +44,12 @@ def start_program():
     rospy.sleep(10)
 
     print("Task id lookup: " + str(task_id_lookup))
-    task_id_current, task_lookup_result = agv_communication_lookup(task_id_lookup, 2)
+    task_id_current, task_lookup_result = agv_communication_lookup(task_id_lookup, 5)
     print("Task id lookup result: " + str(task_lookup_result))
     while task_lookup_result != 3:
         print("Task not finished.")
         rospy.sleep(1)
-        task_id_current, task_lookup_result = agv_communication_lookup(task_id_lookup, 2)
+        task_id_current, task_lookup_result = agv_communication_lookup(task_id_lookup, 5)
     r.move(Ptp(goal=TEST_POSE, vel_scale=PTP_SCALE, acc_scale=0.1))
     print("Task id current: " + str(task_id_current))
     print("Task lookup result: " + str(task_lookup_result))

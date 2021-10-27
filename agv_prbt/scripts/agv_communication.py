@@ -2,12 +2,12 @@
 from struct import pack, unpack
 import socket
 import time
-
+import random
 
 def socketConnect():
-    # AGV IP address and port
+    # AGV车管IP地址及端口
     agv_ip = '192.168.251.50'
-    agv_port = 9999
+    agv_port = 9998
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -84,8 +84,7 @@ def agv_communication_lookup(task_id, value, data_length=4, task_type=1, result=
 
 
 if __name__ == "__main__":
-
-    TaskId, Result = agv_communication_lookup(task_id=2, value=1)
+    TaskId, Result = agv_communication_lookup(task_id=30, value=1)
     print("Task Id: " + str(TaskId))
     print("Result: " + str(Result))
 
