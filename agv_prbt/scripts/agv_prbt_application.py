@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import math
+from pilz_robot_programming.commands import Gripper
 import rospy
 import random 
 from geometry_msgs.msg import Pose, Point
@@ -22,6 +23,10 @@ HOME_POSE = [math.radians(-90), math.radians(0), math.radians(-90), 0, math.radi
 FEED_TABLE_PICTURE_POSE = [math.radians(90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # 起始关节角度
 GRIPPER_ORIENTATION = from_euler(0, math.radians(180),  math.radians(45))         # 夹爪方向
 SAFETY_HEIGHT =  0.12
+FEED_TABLE_BOX_FULL_OFFSET_X = 0.1075
+FEED_TABLE_BOX_EMPTY_OFFSET_X = 0.1075 + 0.215
+FEED_TABLE_BOX_FULL_OFFSET_Y = 0.115
+CAMERA_GRIPPER_OFFSET_Y = 0.066
 
 
 # 照片存放路径
@@ -128,20 +133,21 @@ def table_cap_and_analyze():
     
 def agv_task_deply_wrapper(task_id, task_number):
     agv_task_id_current, _ = agv_communication_deploy(task_id, task_number)
-    rospy.sleep(1)
+    rospy.sleep(5)
     agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(task_id, task_number)
     while agv_task_lookup_result != 3:
-        print("Task not finished.")
-        rospy.sleep(1)
+        rospy.loginfo("AGV executing task No %s", task_number)
+        rospy.sleep(3)
         agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(task_id, task_number)
     if agv_task_lookup_result == 3:
-        print("AGV reached goal %s", task_number)
+        rospy.loginfo("AGV finished task No %s", task_number)
         agv_task_id_deploy = agv_task_id_current + 1
     return agv_task_id_deploy
 
 
 if __name__ == "__main__":
     program_cycle_count = 1
+
     # 创建节点
     rospy.init_node('robot_program_node')
     
@@ -166,40 +172,33 @@ if __name__ == "__main__":
     current_pose = r.get_current_pose()
     if current_pose.position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
+    if current_pose.position.y > 0:
+        r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
     modclient.client.write_register(40023, 1)
-
-    # agv运行至1号起始位（充电位）
-    # agv_task_id_current, agv_task_deploy_result = agv_communication_deploy(agv_task_id_deploy, 1)
-    # while agv_task_deploy_result != 1:
-    #     print("Task deploy failed.")
-    #     rospy.sleep(1)
-    #     agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(agv_task_id_lookup, 1)
-    # print("Task Id: " + str(agv_task_id_current))
-    # print("Result: " + str(agv_task_deploy_result))
-    # agv_task_id_deploy = agv_task_id_current + 1
-    # agv_task_id_lookup = agv_task_id_current
     
     robotCell_box_missing = modclient.client.read_holding_registers(40006, 1).registers[0]
     if robotCell_box_missing:
         r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
         table_x, table_y, table_angle = table_cap_and_analyze()
-        robot_x = r.get_current_pose().position.x + table_x
-        robot_y = r.get_current_pose().position.y + table_y
-        robot_z = r.get_current_pose().position.z
-        r.move(Ptp(goal=Pose(position=Point(robot_x, robot_y, robot_z), 
+        robot_x = r.get_current_pose().position.x + table_x + FEED_TABLE_BOX_FULL_OFFSET_X
+        robot_y = r.get_current_pose().position.y + table_y + FEED_TABLE_BOX_FULL_OFFSET_Y + CAMERA_GRIPPER_OFFSET_Y
+        robot_z = r.get_current_pose().position.z - 0.15
+        r.move(Lin(goal=Pose(position=Point(robot_x, robot_y, robot_z), 
                     orientation=from_euler(0, math.radians(180),  math.radians(45-table_angle))), 
                     reference_frame="prbt_base_link", 
                     vel_scale=LIN_SCALE, acc_scale=0.1))
+        r.move(Gripper(goal=0.030))
         # Todo 机器人装料盘
         rospy.sleep(3)
         ###
-        r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-        agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 5)
-        r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-        rospy.sleep(3)
-        r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
-        agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 1)
+        # r.move(Lin(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        # r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        # agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 5)
+        # r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        # rospy.sleep(3)
+        # r.move(Ptp(goal=HOME_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        # agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 1)
         
     
     program_cycle_count += 1
