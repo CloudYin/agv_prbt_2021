@@ -44,16 +44,16 @@ def get_blue_marker_pose(calibrated_file_path):
                 cv2.circle(img_contour, (int(centerX), int(centerY)), 2, (0, 0, 255))
                 feed_table_x = ((centerX-1000) * 0.0722)/1000
                 feed_table_y = ((800-centerY) * 0.0706)/1000
-                robotCell_table_x = centerX
-                robotCell_table_y = centerY
+                smf_table_x = ((centerX-1000) * 0.0722)/1000
+                smf_table_y = ((800-centerY) * 0.0706)/1000
     # cv2.imshow("img_contour", img_contour)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     cv2.imwrite("/home/pilz/Pictures/agv_prbt/table_contour.jpg", img_contour)
-    return feed_table_x, feed_table_y, angle
+    return feed_table_x, feed_table_y, smf_table_x, smf_table_y, angle
 
 
 if __name__ == '__main__':
     calibrated_file_path = '/home/pilz/Pictures/agv_prbt/table_calibrated.png'
-    x, y, angle = get_blue_marker_pose(calibrated_file_path)
-    print(x, y, angle)
+    feed_table_x, feed_table_y, smf_table_x, smf_table_y, angle = get_blue_marker_pose(calibrated_file_path)
+    print(feed_table_x, feed_table_y, smf_table_x, smf_table_y, angle)

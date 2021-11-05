@@ -2,17 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import math
-from pilz_robot_programming.commands import Gripper
 import rospy
 import random 
 from geometry_msgs.msg import Pose, Point
-from pilz_robot_programming import Ptp, Lin, Robot, from_euler, Sequence
+from pilz_robot_programming import Ptp, Lin, Robot, Gripper, from_euler, Sequence
 from prbt_hardware_support.srv import WriteModbusRegister
 from prbt_hardware_support.msg import ModbusRegisterBlock, ModbusMsgInStamped
-from take_picture import take_picutre, undistort_pic
-from get_marker_pose import get_blue_marker_pose
 from modbus_wrapper_client import ModbusWrapperClient 
-from agv_communication import agv_communication_deploy, agv_communication_lookup
+from table_cap_and_analyze import table_cap_and_analyze
+from agv_task_deploy_wrapper import agv_task_deply_wrapper
 
 
 # API版本号（不允许修改）
@@ -20,13 +18,20 @@ REQUIRED_API_VERSION = "1"
 
 # 位置常量（因涉及到实际机械位置，因此不要修改）
 HOME_POSE = [math.radians(-90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # 起始关节角度
-FEED_TABLE_PICTURE_POSE = [math.radians(90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # 起始关节角度
+CAPTURE_POSE = [math.radians(90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]  # 相机拍照角度
+AGV_PLATE_FULL_POSE = [math.radians(-90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # AGV满料盘位置
+AGV_PLATE_EMPTY_POSE = [math.radians(-90), math.radians(0), math.radians(-90), 0, math.radians(-90), math.radians(135)]    # AGV空料盘位置
 GRIPPER_ORIENTATION = from_euler(0, math.radians(180),  math.radians(45))         # 夹爪方向
 SAFETY_HEIGHT =  0.3
 FEED_TABLE_BOX_FULL_OFFSET_X = 0.106
 FEED_TABLE_BOX_EMPTY_OFFSET_X = 0.106 + 0.215
+FEED_TABLE_PEN_FULL_OFFSET_X = 0.106 - 0.43
+FEED_TABLE_PEN_EMPTY_OFFSET_X = 0.106 - 0.215
 FEED_TABLE_OFFSET_Y = 0.113
 FEED_TABLE_PnP_OFFSET_Z = 0.072
+SMF_TABLE_BOX_OFFSET_X = 0.106
+SMF_TABLE_PEN_OFFSET_X = 0.106 + 0.215
+SMF_TABLE_OFFSET_Y = 0.113
 CAMERA_GRIPPER_OFFSET = 0.066
 PLATE_HEIGHT = 0.025
 
@@ -124,33 +129,7 @@ def init_modbus():
     rospy.sleep(3)
 
 
-def table_cap_and_analyze():
-    """
-    拍照并获取上料台相对位置
-    """
-    take_picutre(table_pic_file_path)
-    undistort_pic(table_pic_file_path, table_calibrated_pic_file_path)
-    table_x, table_y, table_angle = get_blue_marker_pose(table_calibrated_pic_file_path)
-    return table_x, table_y, table_angle
-  
-    
-def agv_task_deply_wrapper(task_id, task_number):
-    agv_task_id_current, _ = agv_communication_deploy(task_id, task_number)
-    rospy.sleep(5)
-    agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(task_id, task_number)
-    while agv_task_lookup_result != 3:
-        rospy.loginfo("AGV executing task No %s", task_number)
-        rospy.sleep(0.5)
-        agv_task_id_current, agv_task_lookup_result = agv_communication_lookup(task_id, task_number)
-    if agv_task_lookup_result == 3:
-        rospy.loginfo("AGV finished task No %s", task_number)
-        agv_task_id_deploy = agv_task_id_current + 1
-    return agv_task_id_deploy
-
-
 if __name__ == "__main__":
-    program_cycle_count = 1
-
     # 创建节点
     rospy.init_node('robot_program_node')
     
@@ -175,62 +154,129 @@ if __name__ == "__main__":
     while r.get_current_pose().position.z < SAFETY_HEIGHT:
         r.move(Lin(goal=Pose(position=Point(0, 0, -0.05)), reference_frame="prbt_tcp", vel_scale=LIN_SCALE, acc_scale=0.1))
     if r.get_current_pose().position.y > 0:
-        r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+        r.move(Ptp(goal=CAPTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=HOME_POSE, vel_scale=PTP_SCALE, acc_scale=0.1))
     modclient.client.write_register(40023, 1)
     
     robotCell_box_missing = modclient.client.read_holding_registers(40006, 1).registers[0]
     if robotCell_box_missing:
         if 0 < box_plate_pick_number <= 5:
-            r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
-            _, _, table_angle = table_cap_and_analyze()
+            # 机器人从上料台拾取满料盘
+            r.move(Ptp(goal=CAPTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
+            _, _, _, _, table_angle = table_cap_and_analyze(table_pic_file_path, table_calibrated_pic_file_path)
             r.move(Lin(goal=Pose(orientation=from_euler(0, 0, math.radians(-table_angle))), 
                         reference_frame="prbt_tcp", 
                         vel_scale=LIN_SCALE, acc_scale=0.1))
-            table_x, table_y, _ = table_cap_and_analyze()
-            r.move(Lin(goal=Pose(position=Point(-table_x - FEED_TABLE_BOX_FULL_OFFSET_X, table_y + FEED_TABLE_OFFSET_Y + CAMERA_GRIPPER_OFFSET, 0.15)), 
+            feed_table_x, feed_table_y, _, _, _ = table_cap_and_analyze(table_pic_file_path, table_calibrated_pic_file_path)
+            r.move(Lin(goal=Pose(position=Point(-feed_table_x - FEED_TABLE_BOX_FULL_OFFSET_X, feed_table_y + FEED_TABLE_OFFSET_Y + CAMERA_GRIPPER_OFFSET, 0.15)), 
                         reference_frame="prbt_tcp", 
                         vel_scale=LIN_SCALE, acc_scale=0.1))
-            box_plate_pick_start_pose = r.get_current_pose()
-            box_plate_pick_height = FEED_TABLE_PnP_OFFSET_Z + (5 - box_plate_pick_number) * 0.025
+            pick_start_pose = r.get_current_pose()
+            pick_height = FEED_TABLE_PnP_OFFSET_Z + (5 - box_plate_pick_number) * 0.025
             r.move(Gripper(goal=0.030))
-            r.move(Lin(goal=Pose(position=Point(0, 0, box_plate_pick_height)), 
+            r.move(Lin(goal=Pose(position=Point(0, 0, pick_height)), 
                         reference_frame="prbt_tcp", 
                         vel_scale=PnP_SCALE, acc_scale=0.1))
-            rospy.sleep(3)
-            r.move(Lin(goal=box_plate_pick_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
-            r.move(Lin(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.027))
+            rospy.sleep(.5)
+            r.move(Lin(goal=pick_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=CAPTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
             r.move(Ptp(goal=HOME_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
-            # Todo 机器人将满料盘放在小车上
+            
+            # 将满料盘放到小车
+            r.move(Lin(goal=AGV_PLATE_FULL_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=Pose(position=Point(0, 0, 0.05)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.030))
+            rospy.sleep(.5)
+            r.move(Lin(goal=AGV_PLATE_FULL_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Ptp(goal=HOME_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
 
+            # AGV去工作站位置
             agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 5)
-            # Todo 机器人从小车上取满料盘放到工作站，并从工作站取空料盘
-            rospy.sleep(3)
+
+            # 机器人从工作站拾取空料盘
+            r.move(Ptp(goal=CAPTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
+            _, _, _, _, table_angle = table_cap_and_analyze(table_pic_file_path, table_calibrated_pic_file_path)
+            r.move(Lin(goal=Pose(orientation=from_euler(0, 0, math.radians(-table_angle))), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=LIN_SCALE, acc_scale=0.1))
+            _, _, smf_table_x, smf_table_y, _ = table_cap_and_analyze(table_pic_file_path, table_calibrated_pic_file_path)
+            r.move(Lin(goal=Pose(position=Point(-smf_table_x - SMF_TABLE_BOX_OFFSET_X, smf_table_y + SMF_TABLE_OFFSET_Y + CAMERA_GRIPPER_OFFSET, 0.15)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=LIN_SCALE, acc_scale=0.1))
+            pick_start_pose = r.get_current_pose()
+            pick_height = 0
+            r.move(Gripper(goal=0.030))
+            r.move(Lin(goal=Pose(position=Point(0, 0, pick_height)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.027))
+            rospy.sleep(.5)
+            r.move(Lin(goal=pick_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=CAPTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            
+            # 将空料盘放到小车
+            r.move(Ptp(goal=AGV_PLATE_EMPTY_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
+            r.move(Lin(goal=Pose(position=Point(0, 0, 0.05)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.030))
+            rospy.sleep(.5)
+            r.move(Lin(goal=AGV_PLATE_EMPTY_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+
+            # 从小车拾取满料盘放到工作站
+            r.move(Lin(goal=AGV_PLATE_FULL_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.030))
+            r.move(Lin(goal=Pose(position=Point(0, 0, 0.05)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.027))
+            rospy.sleep(.5)
+            r.move(Lin(goal=AGV_PLATE_FULL_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Ptp(goal=CAPTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
+            r.move(Lin(goal=pick_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=Pose(position=Point(0, 0, pick_height)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.030))
+            rospy.sleep(.5)
+            r.move(Lin(goal=pick_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=CAPTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Ptp(goal=HOME_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
+
+            # AGV去上料台位置
             agv_task_id_deploy = agv_task_deply_wrapper(agv_task_id_deploy, 1)
 
         if 0 <= box_plate_place_number < 5:
-            r.move(Ptp(goal=FEED_TABLE_PICTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
-            _, _, table_angle = table_cap_and_analyze()
+            r.move(Ptp(goal=CAPTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
+            _, _, _, _, table_angle = table_cap_and_analyze(table_pic_file_path, table_calibrated_pic_file_path)
             r.move(Lin(goal=Pose(orientation=from_euler(0, 0, math.radians(-table_angle))), 
                         reference_frame="prbt_tcp", 
                         vel_scale=LIN_SCALE, acc_scale=0.1))
-            table_x, table_y, _ = table_cap_and_analyze()
-            box_plate_place_middle_pose = r.get_current_pose()
-            # Todo 机器人从小车上取空料盘
-            r.move(Ptp(goal=box_plate_place_middle_pose, reference_frame="prbt_base_link", vel_scale=PTP_SCALE, acc_scale=0.2))
-            r.move(Lin(goal=Pose(position=Point(-table_x - FEED_TABLE_BOX_EMPTY_OFFSET_X, table_y + FEED_TABLE_OFFSET_Y + CAMERA_GRIPPER_OFFSET, 0.15)), 
-                        reference_frame="prbt_tcp", 
-                        vel_scale=LIN_SCALE, acc_scale=0.1))
-            box_plate_place_start_pose = r.get_current_pose()
-            box_plate_place_height = FEED_TABLE_PnP_OFFSET_Z + (5 - box_plate_place_number) * 0.025 - 0.023
+            feed_table_x, feed_table_y, _, _, _ = table_cap_and_analyze(table_pic_file_path, table_calibrated_pic_file_path)
+            place_start_pose = r.get_current_pose()
+            place_height = FEED_TABLE_PnP_OFFSET_Z + (5 - box_plate_place_number) * 0.025 - 0.023
+            r.move(Ptp(goal=AGV_PLATE_EMPTY_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
             r.move(Gripper(goal=0.030))
-            r.move(Lin(goal=Pose(position=Point(0, 0, box_plate_place_height)), 
+            r.move(Lin(goal=Pose(position=Point(0, 0, 0.05)), 
                         reference_frame="prbt_tcp", 
                         vel_scale=PnP_SCALE, acc_scale=0.1))
-            rospy.sleep(3)
-            r.move(Lin(goal=box_plate_place_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
-            r.move(Lin(goal=FEED_TABLE_PICTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.027))
+            rospy.sleep(.5)
+            r.move(Lin(goal=AGV_PLATE_EMPTY_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Ptp(goal=place_start_pose, reference_frame="prbt_base_link", vel_scale=PTP_SCALE, acc_scale=0.2))
+            r.move(Lin(goal=Pose(position=Point(-feed_table_x - FEED_TABLE_BOX_EMPTY_OFFSET_X, feed_table_y + FEED_TABLE_OFFSET_Y + CAMERA_GRIPPER_OFFSET, 0.15)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=LIN_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=Pose(position=Point(0, 0, place_height)), 
+                        reference_frame="prbt_tcp", 
+                        vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Gripper(goal=0.030))
+            rospy.sleep(.5)
+            r.move(Lin(goal=place_start_pose, reference_frame="prbt_base_link", vel_scale=PnP_SCALE, acc_scale=0.1))
+            r.move(Lin(goal=CAPTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
             r.move(Ptp(goal=HOME_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
     
-    program_cycle_count += 1
     rospy.spin()
