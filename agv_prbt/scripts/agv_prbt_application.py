@@ -140,7 +140,7 @@ if __name__ == "__main__":
     agv_task_id_lookup = agv_task_id_deploy
 
     init_modbus()
-    # modclient = pymodbus_client()
+    modclient = pymodbus_client()
 
     # 启动程序
     rospy.loginfo("Program started")  # log
@@ -156,11 +156,10 @@ if __name__ == "__main__":
     if r.get_current_pose().position.y > 0:
         r.move(Ptp(goal=CAPTURE_POSE, vel_scale=LIN_SCALE, acc_scale=0.1))
     r.move(Ptp(goal=HOME_POSE, vel_scale=PTP_SCALE, acc_scale=0.1))
-    # modclient.client.write_register(40023, 1)
+    modclient.client.write_register(40023, 1)
     
-    # robotCell_box_missing = modclient.client.read_holding_registers(40006, 1).registers[0]
-    # if robotCell_box_missing:
-    if True:
+    robotCell_box_missing = modclient.client.read_holding_registers(40006, 1).registers[0]
+    if robotCell_box_missing:
         if 0 < box_plate_pick_number <= 5:
             # 机器人从上料台拾取满料盘
             r.move(Ptp(goal=CAPTURE_POSE, vel_scale=PTP_SCALE, acc_scale=0.2))
