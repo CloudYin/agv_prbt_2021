@@ -44,8 +44,8 @@ def get_blue_marker_pose(calibrated_file_path):
                 cv2.circle(img_contour, (int(centerX), int(centerY)), 2, (0, 0, 255))
                 feed_table_x = ((centerX-1000) * 0.0722)/1000
                 feed_table_y = ((800-centerY) * 0.0706)/1000
-                smf_table_x = ((centerX-1000) * 0.0722)/1000
-                smf_table_y = ((800-centerY) * 0.0706)/1000
+                smf_table_x = ((centerX-1000) * 0.0661)/1000
+                smf_table_y = ((800-centerY) * 0.0679)/1000
     # cv2.imshow("img_contour", img_contour)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
